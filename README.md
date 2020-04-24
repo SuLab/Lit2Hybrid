@@ -1,0 +1,3 @@
+# Lit2Hybrid
+
+MVP described in [this doc](https://docs.google.com/document/d/1j9GM3yELQfKRy6a6HBCdyvwolrtZcu2plOWpJhTdoXM/edit#heading=h.3x0jvxu7m3w5). More to come...
