@@ -1,3 +1,24 @@
-# Lit2Hybrid
+# lit2hybrid
 
-MVP described in [this doc](https://docs.google.com/document/d/1j9GM3yELQfKRy6a6HBCdyvwolrtZcu2plOWpJhTdoXM/edit#heading=h.3x0jvxu7m3w5). More to come...
+## Project setup
+```
+npm install
+```
+
+### Compiles and hot-reloads for development
+```
+npm run serve
+```
+
+### Compiles and minifies for production
+```
+npm run build
+```
+
+### Lints and fixes files
+```
+npm run lint
+```
+
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).
