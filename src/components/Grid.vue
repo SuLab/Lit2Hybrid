@@ -1,5 +1,7 @@
 <template>
   <b-container>
+
+<p>{{stopwatch}} </p>
     <div id="table_template" class="text-center">
       <b-table
         :sticky-header="stickyHeader"
@@ -20,13 +22,13 @@
 
 <script>
 import { EventBus } from "../event-bus";
-import { eUtils } from "../eUtils.js";
+import { eUtils } from "../eUtils";
 import { DynamicTable } from "../dynamic-table";
 
 export default {
   name: "Grid",
   components: {},
-  props: {},
+  props: {},  
   data: function() {
     return {
       stickyHeader: true,
@@ -37,11 +39,17 @@ export default {
       items: [],
       table: null,
       asyncRequests: [],
-      requestBatch: []
+      requestBatch: [],
+      stopwatch: 0
     };
   },
 
   methods: {
+    stopwatchfun: function() {
+      this.stopwatch++;
+
+      setTimeout( this.stopwatchfun, 1000 );
+    },
     populateTable: function() {
       if (this.newsearchTerms && this.modifiers) {
         let searchTerms = eUtils.ValidateInputString(this.newsearchTerms);
@@ -50,6 +58,7 @@ export default {
         this.items = this.table.table;
         this.fillDummyCells();
         this.getAsyncRequests();
+        this.stopwatchfun();
         this.fetchData();
       }
     },
@@ -71,6 +80,9 @@ export default {
       cells.forEach(cell => {
         let rowHeader = this.table.getRowHeader(cell.rowIndex);
         let columnHeader = this.table.getColumnHeader(cell.columnIndex);
+        if (cell.rowIndex == 0) rowHeader = "";
+        if (cell.columnIndex == 1) columnHeader = "";
+
         let eUtilsUrl = eUtils.geteUtilsUrl(rowHeader, columnHeader);
         let pubmedUrl = eUtils.GetPubmedUrl(rowHeader, columnHeader);
 
@@ -94,16 +106,14 @@ export default {
 
       if (this.requestBatch.length == 3 || this.asyncRequests.length == 0) {
         try {
-          let requestBatchCopy = this.requestBatch,
-            obj = this;
-          Promise.all(
-            this.requestBatch.map(request => fetch(request.eUtilsUrl))
-          )
+          let requestCopy = this.requestBatch;
+          let obj = this;
+          Promise.all(requestCopy.map(request => fetch(request.eUtilsUrl)))
             .then(result => Promise.all(result.map(v => v.json())))
             .then(datas => {
               for (let i = 0; i < datas.length; ++i) {
                 var count = datas[i].esearchresult.count;
-                let cell = requestBatchCopy[i];
+                let cell = requestCopy[i];
                 let value = count.link(cell.pubmedUrl);
                 obj.table.setCellValue(cell.rowIndex, cell.columnIndex, value);
                 obj.$forceUpdate();
@@ -113,9 +123,8 @@ export default {
           console.log("From getAsyncData: " + error);
         } finally {
           this.requestBatch = [];
-
           if (this.asyncRequests.length > 0) {
-            setTimeout(this.fetchData, 2000);
+            setTimeout(this.fetchData, 2000);            
           }
         }
       } else {
@@ -136,4 +145,7 @@ export default {
 </script>
 
 <style>
+th.table-b-table-default:nth-child(-n+2) {
+  visibility: hidden;
+}
 </style>
