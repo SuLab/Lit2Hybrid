@@ -1,7 +1,7 @@
 export class eUtils {
-    static GetPubmedUrl(term, modifier) {
+    static getPubmedUrl(term, modifier) {
         let search = term + ' AND ' + modifier;
-        search = (term == "") ? modifier : (modifier == "") ? term : search;
+        search = !term ? modifier : !modifier ? term : search
         let pubmedBaseUrl = "https://www.ncbi.nlm.nih.gov/pubmed/?term=";
         var pubmedUrl = pubmedBaseUrl + search;
         return encodeURI(pubmedUrl);
@@ -9,14 +9,9 @@ export class eUtils {
 
     static geteUtilsUrl(term, modifier) {
         let search = term + ' AND ' + modifier;
-        search = (term == "") ? modifier : (modifier == "") ? term : search;
+        search = !term ? modifier : !modifier ? term : search
         var eUtilsBaseUrl = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&rettype=count&term=";
         var eUtilsUrl = eUtilsBaseUrl + search + "&retmode=json";
         return encodeURI(eUtilsUrl);
-    }
-
-    static ValidateInputString(inputString) {
-        var formatted = inputString.split('\n').filter(x => x);
-        return formatted;
     }
 }

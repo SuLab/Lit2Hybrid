@@ -1,151 +1,164 @@
 <template>
-  <b-container>
-
-<p>{{stopwatch}} </p>
-    <div id="table_template" class="text-center">
-      <b-table
-        :sticky-header="stickyHeader"
-        :no-border-collapse="noCollapse"
-        :bordered="true"
-        :outlined="true"
-        :responsive="true"
-        :items="items"
-      >
-        <template v-slot:cell()="data">
-          <span v-html="data.value"></span>
-        </template>
-      </b-table>
-    </div>
-  </b-container>
+  <b-table
+    ref="table"
+    class="text-center"
+    hover
+    :bordered="true"
+    :outlined="true"
+    :fields="fields"
+    :items="items"
+    primary-key="rowIndex"
+    sticky-header="100vh"
+  >
+    <template v-slot:cell()="data">
+      <div v-if="url=getUrl(data)">
+        <a :href="(url)" target="_blank">{{data.value}}</a>
+      </div>
+      <div v-else>{{data.value}}</div>
+    </template>
+  </b-table>
 </template>
  
 
 <script>
 import { EventBus } from "../event-bus";
 import { eUtils } from "../eUtils";
-import { DynamicTable } from "../dynamic-table";
 
 export default {
   name: "Grid",
   components: {},
-  props: {},  
+  props: {},
   data: function() {
     return {
-      stickyHeader: true,
-      noCollapse: false,
-      newsearchTerms: "",
-      modifiers: "",
-      count: "count",
-      items: [],
-      table: null,
-      asyncRequests: [],
-      requestBatch: [],
-      stopwatch: 0
+      terms: [],
+      modifiers: [],
+      requests: [],
     };
   },
 
-  methods: {
-    stopwatchfun: function() {
-      this.stopwatch++;
+  computed: {
+    fields: function() {
+      let fields = [];
+      if (this.terms.length && this.modifiers.length) {
+        let field = new Array();
+        field["key"] = "#1!";
+        field["label"] = "";
+        field["isRowHeader"] = true;
+        field["stickyColumn"] = true;
+        field["variant"] = "info";
+        fields.push(field);
 
-      setTimeout( this.stopwatchfun, 1000 );
-    },
-    populateTable: function() {
-      if (this.newsearchTerms && this.modifiers) {
-        let searchTerms = eUtils.ValidateInputString(this.newsearchTerms);
-        let modifiers = eUtils.ValidateInputString(this.modifiers);
-        this.table = new DynamicTable(searchTerms, modifiers);
-        this.items = this.table.table;
-        this.fillDummyCells();
-        this.getAsyncRequests();
-        this.stopwatchfun();
-        this.fetchData();
+        field = new Array();
+        field["key"] = "#2!";
+        field["label"] = "";
+        fields.push(field);
+
+        this.modifiers.forEach(modifier => {
+          field = new Array();
+          field["key"] = modifier;
+          field["label"] = modifier;
+          fields.push(field);
+        });
       }
+      return fields;
     },
 
-    fillDummyCells: function() {
-      let tableCells = this.table.getTableCells();
-      let firstCell = tableCells.shift();
-      this.table.setCellValue(
-        firstCell.rowIndex,
-        firstCell.columnIndex,
-        "(self)"
-      );
-    },
+    items: {
+      get: function() {
+        let items = [];
+        if (this.fields.length) {
+          let rowIndex = -1;
+          const primaryKey = "rowIndex";
 
-    getAsyncRequests: function() {
-      let cells = this.table.getTableCells();
-      cells.shift(); // first cell will have a hardcoded value - (self)
+          let item = new Array();
+          let column2 = this.fields[1].key;
+          item[primaryKey] = ++rowIndex;
+          item[column2] = "(self)";
+          items.push(item);
 
-      cells.forEach(cell => {
-        let rowHeader = this.table.getRowHeader(cell.rowIndex);
-        let columnHeader = this.table.getColumnHeader(cell.columnIndex);
-        if (cell.rowIndex == 0) rowHeader = "";
-        if (cell.columnIndex == 1) columnHeader = "";
-
-        let eUtilsUrl = eUtils.geteUtilsUrl(rowHeader, columnHeader);
-        let pubmedUrl = eUtils.GetPubmedUrl(rowHeader, columnHeader);
-
-        let request = {
-          rowIndex: cell.rowIndex,
-          columnIndex: cell.columnIndex,
-          searchTerm: rowHeader,
-          modifier: columnHeader,
-          eUtilsUrl: eUtilsUrl,
-          pubmedUrl: pubmedUrl
-        };
-        this.asyncRequests.push(request);
-      });
-    },
-
-    fetchData: function() {
-      if (this.asyncRequests.length == 0) return;
-
-      let request = this.asyncRequests.shift();
-      this.requestBatch.push(request);
-
-      if (this.requestBatch.length == 3 || this.asyncRequests.length == 0) {
-        try {
-          let requestCopy = this.requestBatch;
-          let obj = this;
-          Promise.all(requestCopy.map(request => fetch(request.eUtilsUrl)))
-            .then(result => Promise.all(result.map(v => v.json())))
-            .then(datas => {
-              for (let i = 0; i < datas.length; ++i) {
-                var count = datas[i].esearchresult.count;
-                let cell = requestCopy[i];
-                let value = count.link(cell.pubmedUrl);
-                obj.table.setCellValue(cell.rowIndex, cell.columnIndex, value);
-                obj.$forceUpdate();
-              }
-            });
-        } catch (error) {
-          console.log("From getAsyncData: " + error);
-        } finally {
-          this.requestBatch = [];
-          if (this.asyncRequests.length > 0) {
-            setTimeout(this.fetchData, 2000);            
-          }
+          let column1 = this.fields[0].key;
+          this.terms.forEach(term => {
+            item = new Array();
+            item[primaryKey] = ++rowIndex;
+            item[column1] = term;
+            items.push(item);
+          });
         }
-      } else {
-        this.fetchData();
+        return items;
+      }
+    }
+  },
+  watch: {
+    items: function() {
+      if (this.items.length) {
+        this.getRequestList();
+        this.requestAsync();
+      }
+    }
+  },
+
+  methods: {
+    getUrl: function(data) {
+      let columnKey = data["field"].key;
+      let rowIndex = data["index"];
+
+      if (columnKey == this.fields[0].key) return "";
+      if (columnKey == this.fields[1].key && rowIndex == 0) return "";
+
+      let columnHeader = data["field"].label;
+      let rowHeader = this.items[rowIndex][this.fields[0].key];
+      return eUtils.getPubmedUrl(rowHeader, columnHeader);
+    },
+
+    getRequestList: function() {
+      this.items.forEach(item => {
+        for (let index = 1; index < this.fields.length; index++) {
+          let firstColumn = this.fields[0].key;
+
+          let request = {
+            rowIndex: item.rowIndex,
+            rowHeader: item[firstColumn],
+            columnKey: this.fields[index].key,
+            columnHeader: this.fields[index].label
+          };
+          this.requests.push(request);
+        }
+      });
+      this.requests.shift(); // first cell belong to (self)
+    },
+
+    requestAsync: async function() {
+      let request = this.requests.shift();
+      try {
+        let url = eUtils.geteUtilsUrl(request.rowHeader, request.columnHeader);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(response);
+        const json = await response.json();
+
+        const count = json.esearchresult.count;
+        this.items[request.rowIndex][request.columnKey] = count;
+
+        this.$refs.table.refresh();
+      } catch (error) {
+        console.log(error);
+      } finally {
+        if (this.requests.length > 0) {
+          // max 3 requests/second is the allowed rate by eUtils server
+          setTimeout(this.requestAsync, 1000 / 3);
+        }
       }
     }
   },
   created() {
-    EventBus.$on("search-terms", terms => {
-      this.newsearchTerms = terms;
+    EventBus.$on("terms", terms => {
+      this.terms = terms;
     });
     EventBus.$on("modifiers", modifiers => {
       this.modifiers = modifiers;
-      this.populateTable();
     });
   }
 };
 </script>
 
 <style>
-th.table-b-table-default:nth-child(-n+2) {
-  visibility: hidden;
-}
 </style>
