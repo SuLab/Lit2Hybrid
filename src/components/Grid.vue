@@ -1,22 +1,23 @@
 <template>
-  <b-table
-    ref="table"
-    class="text-center"
-    hover
-    :bordered="true"
-    :outlined="true"
-    :fields="fields"
-    :items="items"
-    primary-key="rowIndex"
-    sticky-header="98vh"
-  >
-    <template v-slot:cell()="data">
-      <div v-if="url=getUrl(data)">
-        <a :href="(url)" target="_blank">{{data.value}}</a>
-      </div>
-      <div v-else>{{data.value}}</div>
-    </template>
-  </b-table>
+  <div id="table">
+    <b-table
+      ref="table"
+      class="text-center"
+      hover
+      :bordered="true"
+      :outlined="true"
+      :fields="fields"
+      :items="items"
+      primary-key="rowIndex"
+    >
+      <template v-slot:cell()="data">
+        <div v-if="url=getUrl(data)">
+          <a :href="(url)" target="_blank">{{data.value}}</a>
+        </div>
+        <div v-else>{{data.value}}</div>
+      </template>
+    </b-table>
+  </div>
 </template>
  
 <script>
@@ -45,7 +46,6 @@ export default {
         field["key"] = Math.floor(Math.random() * 100).toString();
         field["label"] = "";
         field["isRowHeader"] = true;
-        field["stickyColumn"] = true;
         field["variant"] = "info";
         fields.push(field);
 
@@ -187,4 +187,25 @@ export default {
 </script>
 
 <style>
+/* #table {
+  padding-top: 234px;
+} */
+
+thead th {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0px;
+  background: white;
+}
+
+tbody th {
+  position: -webkit-sticky;
+  position: sticky;
+  left: 0;
+}
+
+thead th:first-child {
+  left: 0;
+  z-index: 1;
+}
 </style>

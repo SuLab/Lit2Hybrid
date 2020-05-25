@@ -1,53 +1,56 @@
 <template>
   <div>
-    <b-navbar id="navbar" toggleable="lg" type="dark" variant="info">
+    <b-navbar
+      id="navbar"
+      :style="{ 'top': headerY, 'position': 'fixed', 'width': '100%' }"
+      toggleable="lg"
+      type="dark"
+      variant="info"
+    >
       <b-navbar-brand tag="h1" class="mb-0 ml-auto">Lit2Hybrid</b-navbar-brand>
       <b-nav-text>a tool for multiplex literature mining.</b-nav-text>
     </b-navbar>
-    <b-form class="row ml-3 mr-3 mt-3 mb-3" inline>
-      <label for="inline-form-input-terms">Terms:</label>
-      <b-form-textarea
-        v-model="terms"
-        id="textarea-small"
-        class="mr-sm-5 mb-sm-0"
-        rows="5"
-        placeholder="Enter your search terms."
-      ></b-form-textarea>
+    <b-container :style="{ 'top': formY, 'position': 'fixed', 'width': '100%' }">
+      <b-form class="row ml-3 mr-3 mt-3 mb-3 float-left" inline>
+        <label for="inline-form-input-terms">Terms:</label>
+        <b-form-textarea
+          v-model="terms"
+          class="mr-sm-5 mb-sm-0"
+          rows="5"
+          placeholder="Enter your search terms."
+        ></b-form-textarea>
 
-      <label for="inline-form-input-modifiers">Modifiers:</label>
-      <b-form-textarea
-        v-model="modifiers"
-        id="textarea-small"
-        class="mr-sm-5 mb-sm-0"
-        rows="5"
-        placeholder="Enter modifiers."
-        autocomplete="true"
-      ></b-form-textarea>
+        <label for="inline-form-input-modifiers">Modifiers:</label>
+        <b-form-textarea
+          v-model="modifiers"
+          class="mr-sm-5 mb-sm-0"
+          rows="5"
+          placeholder="Enter modifiers."
+          autocomplete="true"
+        ></b-form-textarea>
 
-      <div>
-        <label class="sr-only" for="inline-form-input-api-key">API Key</label>
-        <b-input
-          v-model="apikey"
-          id="inline-form-input-api-key"
-          :trim="true"
-          placeholder="API Key (optional)"
-        ></b-input>
-        <b-form-checkbox
-          class="mb-2 mr-sm-2 mb-sm-0"
-          size="sm"
-          v-model="checked"
-          switch
-        >Remember API key in this computer</b-form-checkbox>
-        <b-button class="mt-3" variant="primary" @click="search">Search</b-button>
+        <div>
+          <label class="sr-only" for="inline-form-input-api-key">API Key</label>
+          <b-input v-model="apikey" :trim="true" placeholder="API Key (optional)"></b-input>
+          <b-form-checkbox
+            class="mb-2 mr-sm-2 mb-sm-0"
+            size="sm"
+            v-model="checked"
+            switch
+          >Remember API key in this computer</b-form-checkbox>
+          <b-button class="mt-3" variant="primary" @click="search">Search</b-button>
+        </div>
+      </b-form>
+    </b-container>
+    <div :style="{ 'padding-top': '234px'}">
+      <div v-if="errors.length">
+        <b>Please correct the following error(s):</b>
+        <ul>
+          <li v-for="error in errors" v-bind:key="error">{{ error }}</li>
+        </ul>
       </div>
-    </b-form>
-    <div v-if="errors.length">
-      <b>Please correct the following error(s):</b>
-      <ul>
-        <li v-for="error in errors" v-bind:key="error">{{ error }}</li>
-      </ul>
+      <div v-else></div>
     </div>
-    <div v-else></div>
   </div>
 </template>
 
@@ -65,11 +68,19 @@ export default {
       modifiers: "",
       apikey: "",
       checked: false,
-      asyncCompleted: true
+      asyncCompleted: true,
+      formY: "56px",
+      headerY: "0px"
     };
   },
 
   methods: {
+    handleScroll: function() {
+      // Let the fixed header and form keep moving on vertical scrolling
+      this.formY = (window.scrollY - 56) * -1 + "px";
+      this.headerY = window.scrollY * -1 + "px";
+    },
+
     validateApiKey: async function() {
       this.asyncCompleted = false;
       let term = this.termsArray[0],
@@ -158,6 +169,9 @@ export default {
       return this.modifiers ? this.splitString(this.modifiers) : [];
     }
   },
+  destroyed() {
+    window.removeEventListener("scroll", this.handleScroll);
+  },
   mounted() {
     if (localStorage.getItem("apikey")) {
       this.apikey = localStorage.apikey;
@@ -167,9 +181,9 @@ export default {
         this.apikey = sessionStorage.apikey;
       }
     }
+    window.addEventListener("scroll", this.handleScroll);
   }
 };
 </script>
-
 <style>
 </style>  
