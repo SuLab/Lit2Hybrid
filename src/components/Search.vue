@@ -10,9 +10,10 @@
       <b-navbar-brand tag="h1" class="mb-0 ml-auto">Lit2Hybrid</b-navbar-brand>
       <b-nav-text>a tool for multiplex literature mining.</b-nav-text>
     </b-navbar>
+
     <b-container :style="{ 'top': formY, 'position': 'fixed', 'width': '100%' }">
       <b-form class="row ml-3 mr-3 mt-3 mb-3 float-left" inline>
-        <label for="inline-form-input-terms">Terms:</label>
+        <label class="mr-1">Terms:</label>
         <b-form-textarea
           v-model="terms"
           class="mr-sm-5 mb-sm-0"
@@ -20,7 +21,7 @@
           placeholder="Enter your search terms."
         ></b-form-textarea>
 
-        <label for="inline-form-input-modifiers">Modifiers:</label>
+        <label class="mr-1">Modifiers:</label>
         <b-form-textarea
           v-model="modifiers"
           class="mr-sm-5 mb-sm-0"
@@ -31,13 +32,12 @@
 
         <div>
           <label class="sr-only" for="inline-form-input-api-key">API Key</label>
-          <b-input v-model="apikey" :trim="true" placeholder="API Key (optional)"></b-input>
+          <b-input v-model="apiKey" :trim="true" placeholder="API Key (optional)"></b-input>
           <b-form-checkbox
             class="mb-2 mr-sm-2 mb-sm-0"
             size="sm"
             v-model="checked"
-            switch
-          >Remember API key in this computer</b-form-checkbox>
+          >Remember in this computer</b-form-checkbox>
           <b-button class="mt-3" variant="primary" @click="search">Search</b-button>
         </div>
       </b-form>
@@ -56,7 +56,8 @@
 
 <script>
 import { EventBus } from "../event-bus";
-import { eUtils } from "../eUtils";
+import { Request } from "../request";
+import { String } from "../string";
 
 export default {
   name: "Search",
@@ -66,70 +67,64 @@ export default {
       errors: [],
       terms: "",
       modifiers: "",
-      apikey: "",
+      apiKey: "",
       checked: false,
-      asyncCompleted: true,
       formY: "56px",
-      headerY: "0px"
+      headerY: "0px",
+      isApiKeyValid: null,
+      termsChanged: false,
+      modifiersChanged: false
     };
   },
 
   methods: {
     handleScroll: function() {
-      // Let the fixed header and form keep moving on vertical scrolling
+      // let the fixed header and form keep moving on vertical scrolling
       this.formY = (window.scrollY - 56) * -1 + "px";
       this.headerY = window.scrollY * -1 + "px";
     },
 
-    validateApiKey: async function() {
-      this.asyncCompleted = false;
-      let term = this.termsArray[0],
-        isValid = false;
-      let url = eUtils.geteUtilsUrl(term, "", this.apikey);
-
+    validateapiKey: async function() {
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(response);
-
-        const json = await response.json();
-        isValid = "count" in json.esearchresult;
+        let term = this.termsArray[0];
+        this.isApiKeyValid = await Request.isApiKeyValid(term, this.apiKey);
       } catch (error) {
-        console.log(error);
+        this.isApiKeyValid = false;
+        console.error(error);
       } finally {
-        if (isValid) {
-          let interval = eUtils.ApiKeyRequestInterval;
-          setTimeout(() => {
-            this.emit();
-            this.storeApiKey();
-          }, interval);
+        if (this.isApiKeyValid) {
+          this.emit();
+          this.storeapiKey();
         } else {
-          this.errors.push("Unable to validate your api key.");
+          this.errors.push("Unable to validate your API Key.");
         }
-        this.asyncCompleted = true;
       }
     },
 
     emit: function() {
-      let form = {
-        terms: this.termsArray,
-        modifiers: this.modifiersArray,
-        apikey: this.apikey
-      };
-      EventBus.$emit("form", form);
+      if (this.termsChanged) {
+        EventBus.$emit("terms", this.termsArray);
+        this.termsChanged = false;
+      }
+      if (this.modifiersChanged) {
+        EventBus.$emit("modifiers", this.modifiersArray);
+        this.modifiersChanged = false;
+      }
+      EventBus.$emit("apiKey", this.apiKey);
     },
 
-    storeApiKey: function() {
-      if (this.apikey) {
+    storeapiKey: function() {
+      if (this.apiKey) {
         if (this.checked == true) {
-          if (sessionStorage.getItem("apikey")) {
-            sessionStorage.removeItem("apikey");
+          if (sessionStorage.getItem("apiKey")) {
+            sessionStorage.removeItem("apiKey");
           }
-          localStorage.apikey = this.apikey;
+          localStorage.apiKey = this.apiKey;
         } else {
-          if (localStorage.getItem("apikey")) {
-            localStorage.removeItem("apikey");
+          if (localStorage.getItem("apiKey")) {
+            localStorage.removeItem("apiKey");
           }
-          sessionStorage.apikey = this.apikey;
+          sessionStorage.apiKey = this.apiKey;
         }
       }
     },
@@ -142,43 +137,56 @@ export default {
       if (!this.modifiersArray.length) {
         this.errors.push("Modifier(s) required.");
       }
+      if (this.isApiKeyValid === false) {
+        this.errors.push("Unable to validate your API Key.");
+      }
+
       if (!this.errors.length) {
-        if (this.apikey) {
-          if (this.asyncCompleted) this.validateApiKey();
-        } else {
+        if (this.apiKey && this.isApiKeyValid === null) this.validateapiKey();
+
+        if (!this.apiKey || this.isApiKeyValid) {
           this.emit();
-          this.storeApiKey();
+          this.storeapiKey();
         }
       }
-    },
-
-    splitString(str) {
-      return str
-        .split(/\r\n|\n|\r/)
-        .map(x => x.trim())
-        .filter(x => x);
     }
   },
 
   computed: {
     termsArray: function() {
-      return this.terms ? this.splitString(this.terms) : [];
+      return this.terms ? String.split(this.terms) : [];
     },
 
     modifiersArray: function() {
-      return this.modifiers ? this.splitString(this.modifiers) : [];
+      return this.modifiers ? String.split(this.modifiers) : [];
     }
   },
+
+  watch: {
+    apiKey: function() {
+      this.isApiKeyValid = null;
+    },
+
+    terms: function() {
+      this.termsChanged = true;
+    },
+
+    modifiers: function() {
+      this.modifiersChanged = true;
+    }
+  },
+
   destroyed() {
     window.removeEventListener("scroll", this.handleScroll);
   },
+
   mounted() {
-    if (localStorage.getItem("apikey")) {
-      this.apikey = localStorage.apikey;
+    if (localStorage.getItem("apiKey")) {
+      this.apiKey = localStorage.apiKey;
       this.checked = "true";
     } else {
-      if (sessionStorage.getItem("apikey")) {
-        this.apikey = sessionStorage.apikey;
+      if (sessionStorage.getItem("apiKey")) {
+        this.apiKey = sessionStorage.apiKey;
       }
     }
     window.addEventListener("scroll", this.handleScroll);

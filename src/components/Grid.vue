@@ -1,15 +1,44 @@
 <template>
-  <div id="table">
+  <div>
     <b-table
       ref="table"
-      class="text-center"
+      class="text-center table"
       hover
       :bordered="true"
       :outlined="true"
       :fields="fields"
       :items="items"
-      primary-key="rowIndex"
+      primary-key="rowKey"
     >
+      <template v-slot:cell(___#col0!)="data">
+        <div v-if="data['item']['rowKey'] == '___#rowend!'">
+          <b-button class="addButton" v-b-modal.modal-add-rows variant="light">+ Add Terms</b-button>
+          <b-modal id="modal-add-rows" title="Add terms" ok-title="Add" @ok="addRows" ok-only>
+            <b-form-textarea
+              v-model="modalRows"
+              class="mr-sm-5 mb-sm-0"
+              rows="5"
+              placeholder="Enter your search terms."
+              autofocus
+            ></b-form-textarea>
+          </b-modal>
+        </div>
+        <div v-else>{{data.value}}</div>
+      </template>
+
+      <template v-slot:head(___#colend!)>
+        <b-button class="addButton" v-b-modal.modal-add-columns variant="light">+ Add Terms</b-button>
+        <b-modal id="modal-add-columns" title="Add terms" ok-title="Add" @ok="addColumns" ok-only>
+          <b-form-textarea
+            v-model="modalColumns"
+            class="mr-sm-5 mb-sm-0"
+            rows="5"
+            placeholder="Enter your search terms."
+            autofocus
+          ></b-form-textarea>
+        </b-modal>
+      </template>
+
       <template v-slot:cell()="data">
         <div v-if="url=getUrl(data)">
           <a :href="(url)" target="_blank">{{data.value}}</a>
@@ -23,133 +52,244 @@
 <script>
 import { EventBus } from "../event-bus";
 import { eUtils } from "../eUtils";
+import { String } from "../string";
+import { Request } from "../request";
 
 export default {
   name: "Grid",
   components: {},
   props: {},
+  cancelAsync: false,
   data: function() {
     return {
       terms: [],
       modifiers: [],
-      apikey: null,
-      requestQueue: [],
-      cancelAsync: false
+      apiKey: null,
+      modalColumns: "",
+      modalRows: "",
+      rowsMap: new Map(),
+      columnsMap: new Map(),
+      maxTry: 0,
+      requestQueue: []
     };
   },
 
   computed: {
-    fields: function() {
-      let fields = [];
-      if (this.terms.length && this.modifiers.length) {
-        let field = new Array();
-        field["key"] = Math.floor(Math.random() * 100).toString();
-        field["label"] = "";
-        field["isRowHeader"] = true;
-        field["variant"] = "info";
-        fields.push(field);
+    columns: function() {
+      if (this.modifiers.length) {
+        if (this.columnsMap.size == 0) {
+          let field = new Object();
+          field["key"] = "___#col0!";
+          field["label"] = "";
+          field["isRowHeader"] = true;
+          field["class"] = "rowheader";
+          this.columnsMap.set(field["key"], field);
 
-        field = new Array();
-        field["key"] = Math.floor(Math.random() * 100).toString();
-        field["label"] = "";
-        fields.push(field);
+          field = new Object();
+          field["key"] = "___#col1!";
+          field["label"] = "";
+          this.columnsMap.set(field["key"], field);
+        }
+        this.columnsMap.delete("___#colend!");
 
         this.modifiers.forEach(modifier => {
-          field = new Array();
+          let field = new Object();
           field["key"] = modifier;
           field["label"] = modifier;
-          fields.push(field);
+          if (!this.columnsMap.has(modifier))
+            this.columnsMap.set(modifier, field);
         });
+        let field = new Object();
+        field["key"] = "___#colend!";
+        field["label"] = "";
+        field["class"] = "lastColumn";
+        this.columnsMap.set(field["key"], field);
       }
-      return fields;
+      return this.columnsMap;
+    },
+
+    rows: function() {
+      if (this.terms.length) {
+        if (this.rowsMap.size == 0) {
+          let item = new Object();
+          let column2 = this.columnKeys[1];
+          item["rowKey"] = "___#row0!";
+          item[column2] = "(self)";
+          item["rowHeader"] = "";
+          this.rowsMap.set(item["rowKey"], item);
+        }
+        this.rowsMap.delete("___#rowend!");
+
+        let column1 = this.columnKeys[0];
+        this.terms.forEach(term => {
+          let item = new Object();
+          item["rowKey"] = term;
+          item[column1] = term;
+          item["rowHeader"] = term;
+          if (!this.rowsMap.has(term)) this.rowsMap.set(term, item);
+        });
+
+        let item = new Object();
+        item["rowKey"] = "___#rowend!";
+        item[this.blankColumn] = "";
+        item["rowHeader"] = "";
+        this.rowsMap.set(item["rowKey"], item);
+      }
+      return this.rowsMap;
+    },
+
+    fields: function() {
+      return [...this.columns.values()];
     },
 
     items: function() {
-      let items = [];
-      if (this.fields.length) {
-        let rowIndex = -1;
-        const primaryKey = "rowIndex";
-
-        let item = new Array();
-        let column2 = this.fields[1].key;
-        item[primaryKey] = ++rowIndex;
-        item[column2] = "(self)";
-        items.push(item);
-
-        let column1 = this.fields[0].key;
-        this.terms.forEach(term => {
-          item = new Array();
-          item[primaryKey] = ++rowIndex;
-          item[column1] = term;
-          items.push(item);
-        });
-      }
-      return items;
+      return [...this.rows.values()];
     },
 
-    cells: function() {
-      let cells = [];
-      if (this.items.length) {
-        this.items.forEach(item => {
-          for (let index = 1; index < this.fields.length; index++) {
-            let firstColumn = this.fields[0].key;
+    columnKeys: function() {
+      return [...this.columns.keys()];
+    },
 
-            let request = {
-              rowIndex: item.rowIndex,
-              rowHeader: item[firstColumn],
-              columnKey: this.fields[index].key,
-              columnHeader: this.fields[index].label
-            };
-            cells.push(request);
-          }
-        });
-        cells.shift(); // first cell belong to (self)
-      }
-      return cells;
+    rowKeys: function() {
+      return [...this.rows.keys()];
+    },
+
+    blankRow: function() {
+      return [...this.rowKeys].pop();
+    },
+
+    blankColumn: function() {
+      return [...this.columnKeys].pop();
     },
 
     requestInterval: function() {
-      return this.apikey
+      return this.apiKey
         ? eUtils.ApiKeyRequestInterval
         : eUtils.RequestInterval;
     }
   },
 
   watch: {
-    cells: function() {
-      this.requestQueue = this.cells.slice();
+    items: function() {
+      this.createRequestQueue();
       this.requestAsync();
     }
   },
 
   methods: {
+    createRequestQueue() {
+      this.requestQueue = [];
+
+      for (let [rowKey, row] of this.rows) {
+        for (let [columnKey, column] of this.columns) {
+          let req = {
+            rowKey: rowKey,
+            rowHeader: row.rowHeader,
+            columnKey: columnKey,
+            columnHeader: column.label
+          };
+          if (this.isCellValid(req)) this.requestQueue.push(req);
+        }
+      }
+    },
+
+    isCellValid(request) {
+      // ignore the first column which goes to row header
+      if (request.columnKey == this.columnKeys[0]) return false;
+
+      // ignore the last column and row which is intentionally left blank
+      if (request.columnKey == this.blankColumn) return false;
+      if (request.rowKey == this.blankRow) return false;
+
+      // ignore (self) cell or such dummy cells
+      if (!request.rowHeader && !request.columnHeader) return false;
+
+      // pick only the empty cells
+      if (this.getValue(request.rowKey, request.columnKey)) return false;
+
+      return true;
+    },
+
+    addColumns: function() {
+      let modifiers = String.split(this.modalColumns);
+      this.modalColumns = "";
+      this.cancelPending(() => {
+        this.modifiers = this.modifiers.concat(modifiers);
+      });
+    },
+
+    addRows: function() {
+      let terms = String.split(this.modalRows);
+      this.modalRows = "";
+      this.cancelPending(() => {
+        this.terms = this.terms.concat(terms);
+      });
+    },
+
+    cancelPending: function(func) {
+      if (!this.cancelAsync) {
+        this.wait(func);
+      }
+    },
+
+    wait: function(func) {
+      if (this.requestQueue.length == 0) {
+        console.info("No pending operation(s)");
+        this.maxTry = 0;
+        this.cancelAsync = false;
+        func();
+      } else {
+        if (++this.maxTry == 30) {
+          console.error("Unknown error has occured.");
+          console.error("Please try checking your network connectivity.");
+          this.maxTry = 0;
+          this.cancelAsync = false;
+        } else {
+          this.cancelAsync = true;
+          console.info(
+            `Total pending operation(s): ${this.requestQueue.length}`
+          );
+          console.info(
+            `Attempt ${this.maxTry} to cancel pending operation(s).`
+          );
+          setTimeout(this.wait, this.maxTry * 1000, func);
+        }
+      }
+    },
+
     getUrl: function(data) {
+      let rowKey = data["item"].rowKey;
+      let rowHeader = data["item"].rowHeader;
       let columnKey = data["field"].key;
-      let rowIndex = data["index"];
-
-      if (columnKey == this.fields[0].key) return "";
-      if (columnKey == this.fields[1].key && rowIndex == 0) return "";
-
       let columnHeader = data["field"].label;
-      let rowHeader = this.items[rowIndex][this.fields[0].key];
+
+      if (columnKey == this.columnKeys[0]) return "";
+      if (columnKey == this.columnKeys[1] && rowKey == this.rowKeys[0])
+        return "";
+
       return eUtils.getPubmedUrl(rowHeader, columnHeader);
+    },
+
+    getValue: function(rowKey, columnKey) {
+      let row = this.rows.get(rowKey);
+      return row[columnKey];
+    },
+
+    setValue: function(rowKey, columnKey, value) {
+      let row = this.rows.get(rowKey);
+      row[columnKey] = value;
     },
 
     requestAsync: async function() {
       let request = this.requestQueue.shift();
       try {
-        let url = eUtils.geteUtilsUrl(
+        const count = await Request.getCount(
           request.rowHeader,
           request.columnHeader,
-          this.apikey
+          this.apiKey
         );
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(response);
-        const json = await response.json();
 
-        const count = json.esearchresult.count;
-        this.items[request.rowIndex][request.columnKey] = count;
-
+        this.setValue(request.rowKey, request.columnKey, count);
         this.$refs.table.refresh();
       } catch (error) {
         console.log(error);
@@ -161,36 +301,30 @@ export default {
           setTimeout(this.requestAsync, this.requestInterval);
         }
       }
-    },
-
-    wait: function(form) {
-      if (this.requestQueue.length > 0) {
-        console.log("Attempting to cancel an ongoing operation");
-        this.cancelAsync = true;
-        setTimeout(this.wait, 1000, form);
-      } else {
-        this.cancelAsync = false;
-        this.terms = form.terms;
-        this.modifiers = form.modifiers;
-        this.apikey = form.apikey;
-      }
     }
   },
   created() {
-    EventBus.$on("form", form => {
-      if (this.terms == form.terms && this.modifiers == form.modifiers) {
-        this.apikey = form.apikey;
-      } else this.wait(form);
+    EventBus.$on("modifiers", modifiers => {
+      this.cancelPending(() => {
+        this.columns.clear();
+        this.rows.clear();
+        this.modifiers = modifiers;
+      });
     });
+
+    EventBus.$on("terms", terms => {
+      this.cancelPending(() => {
+        this.rows.clear();
+        this.terms = terms;
+      });
+    });
+
+    EventBus.$on("apiKey", apiKey => (this.apiKey = apiKey));
   }
 };
 </script>
 
 <style>
-/* #table {
-  padding-top: 234px;
-} */
-
 thead th {
   position: -webkit-sticky;
   position: sticky;
@@ -202,10 +336,27 @@ tbody th {
   position: -webkit-sticky;
   position: sticky;
   left: 0;
+  background: white;
 }
 
 thead th:first-child {
   left: 0;
   z-index: 1;
+}
+
+.lastColumn {
+  width: 1px;
+  min-width: 127px;
+}
+
+.rowheader {
+  width: 1px;
+  min-width: 250px;
+}
+
+.addButton {
+  color: green;
+  font-weight: bold;
+  font-size: 12.5px;
 }
 </style>
