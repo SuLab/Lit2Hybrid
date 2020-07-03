@@ -31,13 +31,32 @@
         ></b-form-textarea>
 
         <div>
-          <label class="sr-only" for="inline-form-input-api-key">API Key</label>
-          <b-input v-model="apiKey" :trim="true" placeholder="API Key (optional)"></b-input>
-          <b-form-checkbox
-            class="mb-2 mr-sm-2 mb-sm-0"
-            size="sm"
-            v-model="checked"
-          >Remember in this computer</b-form-checkbox>
+          <b-input-group>
+            <b-input v-model="apiKey" :trim="true" placeholder="API Key (optional)"></b-input>
+            <b-input-group-append>
+              <span class="input-group-text">
+                <b-icon-info-circle id="info" variant="info"></b-icon-info-circle>
+              </span>
+              <b-popover target="info" triggers="hover focus" placement="rightbottom">
+                PubMed restricts users to three queries per second. To increase the rate of PubMed queries, please apply for an API key by following the instructions
+                <a
+                  href="https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/"
+                  target="_blank"
+                >
+                  here
+                  <br />
+                  <br />
+                </a>
+              </b-popover>
+            </b-input-group-append>
+          </b-input-group>
+          <b-form-checkbox-group size="sm">
+            <b-form-checkbox
+              class="mb-2 mr-sm-2 mb-sm-0"
+              size="sm"
+              v-model="checked"
+            >Remember in this computer</b-form-checkbox>
+          </b-form-checkbox-group>
           <b-button class="mt-3" variant="primary" @click="search">Search</b-button>
         </div>
       </b-form>
@@ -58,9 +77,13 @@
 import { EventBus } from "../event-bus";
 import { Request } from "../request";
 import { String } from "../string";
+import { BIconInfoCircle } from "bootstrap-vue";
 
 export default {
   name: "Search",
+  components: {
+    BIconInfoCircle
+  },
   props: {},
   data: function() {
     return {
@@ -194,4 +217,8 @@ export default {
 };
 </script>
 <style>
+.input-group-text {
+  background-color: white;
+  border: none;
+}
 </style>  
