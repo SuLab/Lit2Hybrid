@@ -12,7 +12,12 @@
     </b-navbar>
 
     <b-container :style="{ 'top': formY, 'position': 'fixed', 'width': '100%' }">
-      <b-form class="row ml-3 mr-3 mt-3 mb-3 float-left" inline>
+      <div class="example m-2">
+        Example queries:
+        <span class="link" @click="example1()">COVID-19 drugs</span>,
+        <span class="link" @click="example2()">cancer genes</span>
+      </div>
+      <b-form class="row ml-3 mr-3 mb-3 float-left" inline>
         <label class="mr-1">Terms:</label>
         <b-form-textarea
           v-model="terms"
@@ -37,14 +42,13 @@
               <span class="input-group-text">
                 <b-icon-info-circle id="info" variant="info"></b-icon-info-circle>
               </span>
-              <b-popover target="info" triggers="hover focus" placement="rightbottom">
+              <b-popover target="info" triggers="hover focus" placement="right">
                 PubMed restricts users to three queries per second. To increase the rate of PubMed queries, please apply for an API key by following the instructions
                 <a
                   href="https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/"
                   target="_blank"
                 >
                   here
-                  <br />
                   <br />
                 </a>
               </b-popover>
@@ -61,7 +65,7 @@
         </div>
       </b-form>
     </b-container>
-    <div :style="{ 'padding-top': '234px'}">
+    <div :style="{ 'padding-top': '258px'}">
       <div v-if="errors.length">
         <b>Please correct the following error(s):</b>
         <ul>
@@ -105,6 +109,24 @@ export default {
       // let the fixed header and form keep moving on vertical scrolling
       this.formY = (window.scrollY - 56) * -1 + "px";
       this.headerY = window.scrollY * -1 + "px";
+    },
+
+    example1: function() {
+      this.terms = "remdesivir \ndexamethasone \nDanoprevir";
+      this.modifiers = "COVID-19 \nTMPRSS2 \nACE2";
+
+      this.$nextTick(() => {
+        this.search();
+      });
+    },
+
+    example2: function() {
+      this.terms = "BRCA1 \nKRAS \nIDH1";
+      this.modifiers = "breast cancer \ncolon cancer \ngliblastoma";
+
+      this.$nextTick(() => {
+        this.search();
+      });
     },
 
     validateapiKey: async function() {
@@ -220,5 +242,15 @@ export default {
 .input-group-text {
   background-color: white;
   border: none;
+}
+
+.link {
+  color: blue;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.example {
+  font-size: 0.875rem;
 }
 </style>  

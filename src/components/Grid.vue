@@ -64,6 +64,7 @@ export default {
     return {
       terms: [],
       modifiers: [],
+      func: [],
       apiKey: null,
       modalColumns: "",
       modalRows: "",
@@ -227,17 +228,17 @@ export default {
     },
 
     cancelPending: function(func) {
-      if (!this.cancelAsync) {
-        this.wait(func);
-      }
+      this.func.push(func);
+      if (this.func.length == 1) this.wait();
     },
 
-    wait: function(func) {
+    wait: function() {
       if (this.requestQueue.length == 0) {
         console.info("No pending operation(s)");
         this.maxTry = 0;
         this.cancelAsync = false;
-        func();
+
+        while (this.func.length) this.func.shift()();
       } else {
         if (++this.maxTry == 30) {
           console.error("Unknown error has occured.");
@@ -252,7 +253,7 @@ export default {
           console.info(
             `Attempt ${this.maxTry} to cancel pending operation(s).`
           );
-          setTimeout(this.wait, this.maxTry * 1000, func);
+          setTimeout(this.wait, this.maxTry * 1000);
         }
       }
     },
@@ -297,7 +298,6 @@ export default {
         if (this.cancelAsync) this.requestQueue = [];
 
         if (this.requestQueue.length > 0) {
-          console.log("Interval: " + this.requestInterval);
           setTimeout(this.requestAsync, this.requestInterval);
         }
       }
