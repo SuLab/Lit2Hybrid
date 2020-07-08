@@ -56,7 +56,7 @@ import { String } from "../string";
 import { Request } from "../request";
 
 export default {
-  name: "Grid",
+  name: "Table",
   components: {},
   props: {},
   cancelAsync: false,
@@ -306,6 +306,9 @@ export default {
   created() {
     EventBus.$on("modifiers", modifiers => {
       this.cancelPending(() => {
+        // reset for sticky left: 0
+        window.scrollTo(0, 0);
+
         this.columns.clear();
         this.rows.clear();
         this.modifiers = modifiers;
@@ -314,6 +317,8 @@ export default {
 
     EventBus.$on("terms", terms => {
       this.cancelPending(() => {
+        window.scrollTo(0, 0);
+
         this.rows.clear();
         this.terms = terms;
       });
