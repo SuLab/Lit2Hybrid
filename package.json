@@ -10,7 +10,7 @@
   "dependencies": {
     "bootstrap-vue": "^2.1.0",
     "core-js": "^3.6.4",
-    "jquery": "^1.9.1",
+    "jquery": "^3.5.0",
     "vue": "^2.6.11",
     "vue-gtag": "^1.7.0"
   },
