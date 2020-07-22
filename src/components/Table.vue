@@ -54,6 +54,7 @@ import { EventBus } from "../event-bus";
 import { eUtils } from "../eUtils";
 import { String } from "../string";
 import { Request } from "../request";
+import Gtag from "../gtag";
 
 export default {
   name: "Table",
@@ -214,17 +215,27 @@ export default {
     addColumns: function() {
       let modifiers = String.split(this.modalColumns);
       this.modalColumns = "";
-      this.cancelPending(() => {
-        this.modifiers = this.modifiers.concat(modifiers);
-      });
+
+      if (modifiers.length) {
+        this.cancelPending(() => {
+          this.modifiers = this.modifiers.concat(modifiers);
+
+          Gtag.trackModifiers("Add columns", modifiers.length);
+        });
+      }
     },
 
     addRows: function() {
       let terms = String.split(this.modalRows);
       this.modalRows = "";
-      this.cancelPending(() => {
-        this.terms = this.terms.concat(terms);
-      });
+
+      if (terms.length) {
+        this.cancelPending(() => {
+          this.terms = this.terms.concat(terms);
+
+          Gtag.trackTerms("Add rows", terms.length);
+        });
+      }
     },
 
     cancelPending: function(func) {

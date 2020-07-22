@@ -4,8 +4,11 @@
       <b-row>
         <div class="example m-2">
           Example queries:
-          <span class="link" @click="example1()">COVID-19 drugs</span>,
-          <span class="link" @click="example2()">cancer genes</span>
+          <span
+            class="link"
+            @click="gtagAction='Example'; example1()"
+          >COVID-19 drugs</span>,
+          <span class="link" @click="gtagAction='Example'; example2()">cancer genes</span>
         </div>
         <b-form class="row ml-3 mr-3 mb-3 float-left" inline>
           <label class="mr-1">Terms:</label>
@@ -53,7 +56,7 @@
                 unchecked-value="false"
               >Remember in this computer</b-form-checkbox>
             </b-form-checkbox-group>
-            <b-button class="mt-3" variant="primary" @click="search">Search</b-button>
+            <b-button class="mt-3" variant="primary" @click="gtagAction='Search'; search()">Search</b-button>
           </div>
         </b-form>
       </b-row>
@@ -77,6 +80,7 @@ import { EventBus } from "../event-bus";
 import { Request } from "../request";
 import { String } from "../string";
 import { BIconInfoCircle } from "bootstrap-vue";
+import Gtag from "../gtag";
 
 /* The list of events emitted by this component */
 const emits = {
@@ -89,8 +93,8 @@ const status = {
   invalid: 0,
   valid: 1,
   validating: 2,
-  unknown: 4,
-  empty: 5
+  unknown: 3,
+  empty: 4
 };
 
 export default {
@@ -108,7 +112,8 @@ export default {
       checked: false,
       termsChanged: false,
       modifiersChanged: false,
-      apiKeyStatus: status.empty
+      apiKeyStatus: status.empty,
+      gtagAction: ""
     };
   },
 
@@ -151,6 +156,8 @@ export default {
     },
 
     emit: function() {
+      let track = this.termsChanged || this.modifiersChanged;
+
       if (this.termsChanged) {
         EventBus.$emit(emits.terms, this.termsArray);
         this.termsChanged = false;
@@ -160,6 +167,11 @@ export default {
         this.modifiersChanged = false;
       }
       EventBus.$emit(emits.apiKey, this.apiKey);
+
+      if (track) {
+        Gtag.trackTerms(this.gtagAction, this.termsArray.length);
+        Gtag.trackModifiers(this.gtagAction, this.modifiersArray.length);
+      }
     },
 
     storeapiKey: function() {

@@ -9,6 +9,8 @@ Vue.use(VueGtag, {
   config: { id: "UA-171293218-1" }
 });
 
-new Vue({
+const vm = new Vue({
   render: h => h(App),
 }).$mount('#app')
+
+export default vm;
